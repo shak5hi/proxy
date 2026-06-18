@@ -3,7 +3,6 @@ Unit tests for Profile Service.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from io import BytesIO
 
 from proxy_backend.domains.profile.services import ProfileService
 from proxy_backend.domains.profile.exceptions import InvalidResumeException, ProfileExtractionException
@@ -51,35 +50,35 @@ def profile_service(mock_pdf_parser, mock_profile_agent, mock_repository):
 
 @pytest.mark.asyncio
 async def test_successful_upload(profile_service, mock_pdf_parser, mock_profile_agent, mock_repository):
-    file_stream = BytesIO(b"fake pdf content")
-    response = await profile_service.process_upload(file_stream)
+    resume_bytes = b"fake pdf content"
+    response = await profile_service.process_upload(resume_bytes)
     
     assert response.id == "1"
     assert response.skills == ["Python", "FastAPI"]
-    mock_pdf_parser.extract_text.assert_called_once_with(file_stream)
+    mock_pdf_parser.extract_text.assert_called_once_with(resume_bytes)
     mock_profile_agent.extract_profile.assert_called_once_with("Extracted resume text", None, None)
     mock_repository.save_profile.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_empty_resume(profile_service, mock_pdf_parser):
     mock_pdf_parser.extract_text.return_value = "   "
-    file_stream = BytesIO(b"empty")
+    resume_bytes = b"empty"
     
     with pytest.raises(InvalidResumeException):
-        await profile_service.process_upload(file_stream)
+        await profile_service.process_upload(resume_bytes)
 
 @pytest.mark.asyncio
 async def test_pdf_parsing_failure(profile_service, mock_pdf_parser):
     mock_pdf_parser.extract_text.side_effect = PDFParsingException("Corrupted PDF")
-    file_stream = BytesIO(b"corrupted")
+    resume_bytes = b"corrupted"
     
     with pytest.raises(InvalidResumeException):
-        await profile_service.process_upload(file_stream)
+        await profile_service.process_upload(resume_bytes)
 
 @pytest.mark.asyncio
 async def test_agent_extraction_failure(profile_service, mock_profile_agent):
     mock_profile_agent.extract_profile.side_effect = Exception("LLM Error")
-    file_stream = BytesIO(b"valid")
+    resume_bytes = b"valid"
     
     with pytest.raises(ProfileExtractionException):
-        await profile_service.process_upload(file_stream)
+        await profile_service.process_upload(resume_bytes)

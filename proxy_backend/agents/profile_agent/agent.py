@@ -2,17 +2,30 @@
 Profile Agent logic.
 """
 from typing import Optional
-import os
+from pathlib import Path
+import logging
 
 from proxy_backend.providers.llm.interfaces import LLMProvider
 from .schemas import ProfileExtraction
+
+logger = logging.getLogger(__name__)
 
 class ProfileAgent:
     """Agent responsible for parsing resumes."""
     
     def __init__(self, llm_provider: LLMProvider) -> None:
-        """Inject LLM Provider."""
+        """Inject LLM Provider and load prompts."""
         self.llm_provider = llm_provider
+        
+        prompt_path = Path(__file__).resolve().parent.parent.parent / "prompts" / "profile_prompt.txt"
+        if not prompt_path.exists():
+            raise RuntimeError(f"Prompt file not found at {prompt_path}")
+            
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            self.prompt_template = f.read()
+            
+        if not self.prompt_template.strip():
+            raise RuntimeError("Prompt file is empty.")
         
     async def extract_profile(
         self, 
@@ -22,23 +35,12 @@ class ProfileAgent:
     ) -> ProfileExtraction:
         """Extract structured profile from raw text and URLs."""
         
-        # Load prompt
-        # Assuming run from proxy_backend root.
-        prompt_path = os.path.join(os.path.dirname(__file__), "../../prompts/profile_prompt.txt")
-        try:
-            with open(prompt_path, "r") as f:
-                prompt_template = f.read()
-        except FileNotFoundError:
-            # Fallback
-            prompt_template = "Extract data from resume: {resume_text}"
-            
-        prompt = prompt_template.format(
+        prompt = self.prompt_template.format(
             resume_text=resume_text,
             github_url=github_url or "None",
             linkedin_url=linkedin_url or "None"
         )
         
-        # Call LLM
         return await self.llm_provider.extract_structured_data(
             prompt=prompt,
             schema=ProfileExtraction

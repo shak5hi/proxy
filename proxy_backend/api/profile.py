@@ -28,9 +28,9 @@ async def upload_profile(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF resumes are supported.")
         
     try:
-        # File.file is a SpooledTemporaryFile which acts as BinaryIO
+        resume_bytes = await resume.read()
         response = await profile_service.process_upload(
-            file_stream=resume.file,
+            resume_bytes=resume_bytes,
             github_url=github_url,
             linkedin_url=linkedin_url
         )

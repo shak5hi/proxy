@@ -30,18 +30,19 @@ class ProfileService:
 
     async def process_upload(
         self, 
-        file_stream, 
+        resume_bytes: bytes, 
         github_url: Optional[str] = None, 
         linkedin_url: Optional[str] = None
     ) -> ProfileResponse:
         """
-        Process the uploaded resume and optional URLs to extract and save a profile.
+        Process the uploaded resume bytes and optional URLs to extract and save a profile.
         """
         logger.info("upload started")
         
         # 1. Parse PDF
+        logger.info("pdf extraction started")
         try:
-            resume_text = self.pdf_parser.extract_text(file_stream)
+            resume_text = self.pdf_parser.extract_text(resume_bytes)
             if not resume_text.strip():
                 raise InvalidResumeException("Parsed resume text is empty.")
         except PDFParsingException as e:
@@ -69,7 +70,12 @@ class ProfileService:
             "linkedin_url": linkedin_url
         }
         
-        saved_record = await self.repository.save_profile(profile_data)
+        try:
+            saved_record = await self.repository.save_profile(profile_data)
+        except Exception as e:
+            logger.error(f"Failed to save profile to database: {e}")
+            raise
+            
         logger.info("database save completed")
         
         # 4. Return Response

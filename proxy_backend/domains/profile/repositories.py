@@ -4,6 +4,7 @@ Repository for the Profile Domain.
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 import logging
+from postgrest.exceptions import APIError
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,9 @@ class ProfileRepository(AbstractProfileRepository):
             if not result.data:
                 raise ValueError("Insert returned no data.")
             return result.data[0]
-        except ValueError as e:
-            logger.error(f"Validation error in Supabase response: {e}")
-            raise
+        except APIError as e:
+            logger.error(f"Supabase APIError while saving profile: {e}")
+            raise Exception(f"Database insertion failed: {e}")
         except Exception as e:
-            # We catch generic exception here because postgrest-py exceptions might not be explicitly imported
-            # In a real scenario, we would catch postgrest.exceptions.APIError
-            logger.error(f"Database error while saving profile: {e}")
+            logger.error(f"Unexpected database error while saving profile: {e}")
             raise Exception(f"Failed to save profile: {e}")
