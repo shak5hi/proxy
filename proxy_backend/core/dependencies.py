@@ -3,7 +3,11 @@ Centralized FastAPI dependencies.
 No external DI containers; native FastAPI Depends() only.
 """
 from typing import Any
+from fastapi import Depends
+from supabase import create_client, Client
+import logging
 
+from proxy_backend.core.config import Settings
 from proxy_backend.shared.pdf.interfaces import PDFParser
 from proxy_backend.shared.pdf.pdf_parser import PyPDFParser
 from proxy_backend.providers.llm.interfaces import LLMProvider
@@ -12,23 +16,32 @@ from proxy_backend.agents.profile_agent.agent import ProfileAgent
 from proxy_backend.domains.profile.repositories import AbstractProfileRepository, ProfileRepository
 from proxy_backend.domains.profile.services import ProfileService
 
-def get_supabase_client() -> Any:
-    """Mock dependency to retrieve Supabase client."""
-    class MockSupabase:
-        def table(self, name): return self
-        def insert(self, data): return self
-        def execute(self): 
-            class Result: data = [{"id": "123", **data}]
-            return Result()
-    return MockSupabase()
+logger = logging.getLogger(__name__)
+
+def get_settings() -> Settings:
+    """Dependency to retrieve application settings."""
+    return Settings()
+
+def get_supabase_client(settings: Settings = Depends(get_settings)) -> Client:
+    """Dependency to retrieve Supabase client."""
+    if not settings.supabase_url or not settings.supabase_key:
+        logger.warning("Supabase URL or Key not set. Returning a mock client for compilation.")
+        class MockSupabase:
+            def table(self, name): return self
+            def insert(self, data): return self
+            def execute(self): 
+                class Result: data = [{"id": "123", **data}]
+                return Result()
+        return MockSupabase()
+    return create_client(settings.supabase_url, settings.supabase_key)
 
 def get_pdf_parser() -> PDFParser:
     """Dependency to inject PDF Parser."""
     return PyPDFParser()
 
-def get_llm_provider() -> LLMProvider:
+def get_llm_provider(settings: Settings = Depends(get_settings)) -> LLMProvider:
     """Dependency to inject the LLM Provider."""
-    return GeminiProvider()
+    return GeminiProvider(api_key=settings.gemini_api_key)
 
 def get_profile_repository(supabase_client: Any = Depends(get_supabase_client)) -> AbstractProfileRepository:
     """Dependency to inject Profile Repository."""

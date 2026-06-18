@@ -25,11 +25,15 @@ class ProfileRepository(AbstractProfileRepository):
     async def save_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
         """Insert profile into Supabase profiles table."""
         try:
-            # Using real supabase-py commands
             result = self.supabase.table("profiles").insert(profile_data).execute()
             if not result.data:
-                raise Exception("Insert returned no data.")
+                raise ValueError("Insert returned no data.")
             return result.data[0]
+        except ValueError as e:
+            logger.error(f"Validation error in Supabase response: {e}")
+            raise
         except Exception as e:
+            # We catch generic exception here because postgrest-py exceptions might not be explicitly imported
+            # In a real scenario, we would catch postgrest.exceptions.APIError
             logger.error(f"Database error while saving profile: {e}")
             raise Exception(f"Failed to save profile: {e}")
