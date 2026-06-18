@@ -1,0 +1,14 @@
+Extract the following structured information from the provided resume:
+- Skills
+- Tech Stack
+- Projects
+- Experience Level (JUNIOR, MID, SENIOR, STAFF, PRINCIPAL)
+- Preferred Roles
+
+Resume Text:
+{resume_text}
+
+GitHub URL: {github_url}
+LinkedIn URL: {linkedin_url}
+
+Return strictly structured data conforming to the required JSON schema.
